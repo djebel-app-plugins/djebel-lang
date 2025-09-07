@@ -25,6 +25,8 @@ Dj_App_Hooks::addFilter('app.core.request.page.get', [ $obj, 'resetPageOnLangRoo
 Dj_App_Hooks::addFilter('app.core.request.page.get.full_page', [ $obj, 'resetPageOnLangRoot' ]);
 Dj_App_Hooks::addFilter('app.themes.current_theme.pages_dir', [ $obj, 'maybePrependLandDir' ]);
 
+//Dj_App_Hooks::addFilter('app.core.request.web_path', [ $obj, 'updateWebPath' ]);
+
 class Djebel_Lang
 {
     private $langs = ['en',];
@@ -58,6 +60,22 @@ class Djebel_Lang
         return $full_page;
     }
 
+
+    /**
+     * @param string $web_path
+     * @return string
+     */
+    public function updateWebPath($web_path)
+    {
+        $langs_regex = join('|', $this->getLangs());
+
+        if (!preg_match('#/(' . $langs_regex . ')$#si', $web_path)) {
+            $web_path .= '/' . $this->getDefaultLang();
+        }
+
+        return $web_path;
+    }
+
     /**
      * Theme files are in current_theme/pages/ if there's a lang prefix in segment1 we're good otherwise we prepend
      * @param string $web_path
@@ -69,7 +87,8 @@ class Djebel_Lang
         $segment1 = $req_obj->segment1;
         $langs = $this->getLangs();
 
-        if (in_array($segment1, $langs)) {
+        // if there's another page e.g. en/vision -> the dir prefix is there so don't add it.
+        if (in_array($segment1, $langs) && empty($req_obj->segment2)) {
             $pages_dir .= '/' . $segment1;
         }
 
