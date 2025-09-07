@@ -23,11 +23,7 @@ Dj_App_Hooks::addAction('app.core.init', [ $obj, 'maybeRedirect' ]);
 
 Dj_App_Hooks::addFilter('app.core.request.page.get', [ $obj, 'resetPageOnLangRoot' ]);
 Dj_App_Hooks::addFilter('app.core.request.page.get.full_page', [ $obj, 'resetPageOnLangRoot' ]);
-//Dj_App_Hooks::addFilter('app.core.request.web_path', [ $obj, 'updateWebPath' ]);
-
-//Dj_App_Hooks::addFilter('app.core.request.page.get', [ $obj, 'fixHomePage' ]);
-//Dj_App_Hooks::addFilter('app.core.request.segments', [ $obj, 'resetPageOnLangRoot' ]);
-//Dj_App_Hooks::addFilter('app.themes.current_page', [ $obj, 'maybeAddLangPrefix' ]);
+Dj_App_Hooks::addFilter('app.themes.current_theme.pages_dir', [ $obj, 'maybePrependLandDir' ]);
 
 class Djebel_Lang
 {
@@ -63,50 +59,21 @@ class Djebel_Lang
     }
 
     /**
+     * Theme files are in current_theme/pages/ if there's a lang prefix in segment1 we're good otherwise we prepend
      * @param string $web_path
      * @return string
      */
-    public function updateWebPath($web_path)
+    public function maybePrependLandDir($pages_dir)
     {
-        $langs_regex = join('|', $this->getLangs());
+        $req_obj = Dj_App_Request::getInstance();
+        $segment1 = $req_obj->segment1;
+        $langs = $this->getLangs();
 
-        if (!preg_match('#/(' . $langs_regex . ')$#si', $web_path)) {
-            $web_path .= '/' . $this->getDefaultLang();
+        if (in_array($segment1, $langs)) {
+            $pages_dir .= '/' . $segment1;
         }
 
-        return $web_path;
-    }
-
-    /**
-     * @param string $page
-     * @return string
-     */
-    public function maybeAddLangPrefix($page)
-    {
-
-        $langs_regex = join('|', $this->getLangs());
-
-        // if it doesn't have a prefix add it. this is for loading the file
-        // it's either en or en/page
-        if (!preg_match('#^/?('  .$langs_regex . ')(/|$)#si', $page, $matches)) {
-            $page = 'en/' . $page;
-        }
-
-        return $page;
-    }
-
-    /**
-     * So the nav can work in multilingual setup
-     * @param string $page
-     * @return string
-     */
-    public function fixHomePage($page)
-    {
-        if ($page == 'en') {
-            $page = '';
-        }
-
-        return $page;
+        return $pages_dir;
     }
 
     /**
