@@ -20,12 +20,11 @@ license: gpl2
 $obj = Djebel_Lang::getInstance();
 
 Dj_App_Hooks::addAction('app.core.init', [ $obj, 'maybeRedirect' ]);
-
 Dj_App_Hooks::addFilter('app.core.request.page.get', [ $obj, 'resetPageOnLangRoot' ]);
 Dj_App_Hooks::addFilter('app.core.request.page.get.full_page', [ $obj, 'resetPageOnLangRoot' ]);
-Dj_App_Hooks::addFilter('app.themes.current_theme.pages_dir', [ $obj, 'maybePrependLandDir' ]);
+Dj_App_Hooks::addFilter('app.core.request.web_path', [ $obj, 'updateWebPath' ]);
 
-//Dj_App_Hooks::addFilter('app.core.request.web_path', [ $obj, 'updateWebPath' ]);
+Dj_App_Hooks::addFilter('app.themes.current_theme.pages_dir', [ $obj, 'maybePrependLandDir' ]);
 
 class Djebel_Lang
 {
@@ -60,13 +59,18 @@ class Djebel_Lang
         return $full_page;
     }
 
-
     /**
+     * We want to update the web path most of the time but not when we're generating the path to theme url and uploads.
      * @param string $web_path
+     * @param array $ctx
      * @return string
      */
-    public function updateWebPath($web_path)
+    public function updateWebPath($web_path, $ctx = [])
     {
+        if (!empty($ctx['context'])) {
+            return $web_path;
+        }
+
         $langs_regex = join('|', $this->getLangs());
 
         if (!preg_match('#/(' . $langs_regex . ')$#si', $web_path)) {
