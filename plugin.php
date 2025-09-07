@@ -67,7 +67,7 @@ class Djebel_Lang
      */
     public function updateWebPath($web_path, $ctx = [])
     {
-        if (!empty($ctx['context'])) {
+        if (!empty($ctx['context'])) { // for now we won't modify the webPath if there's context && $ctx['context'] == 'content_url'
             return $web_path;
         }
 
