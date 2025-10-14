@@ -136,14 +136,21 @@ class Djebel_Lang
 
     public function getLangs()
     {
-        $langs = Dj_App_Hooks::applyFilter('app.plugins.lang.current_lang', $this->langs);
+        $langs = Dj_App_Hooks::applyFilter('app.plugins.lang.available_langs', $this->langs);
         return $langs;
     }
 
     public function getCurrentLang()
     {
         $val = $this->current_lang;
-        $current_lang = Dj_App_Hooks::applyFilter('app.plugins.lang.langs', $val);
+        $current_lang = Dj_App_Hooks::applyFilter('app.plugins.lang.current_lang', $val);
+
+        if (empty($current_lang)) {
+            $langs = $this->getLangs();
+            $first = reset($langs);
+            $current_lang = $first;
+        }
+
         return $current_lang;
     }
 
