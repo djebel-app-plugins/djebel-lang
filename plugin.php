@@ -23,6 +23,7 @@ Dj_App_Hooks::addAction('app.core.init', [ $obj, 'maybeRedirect' ]);
 Dj_App_Hooks::addFilter('app.core.request.page.get', [ $obj, 'resetPageOnLangRoot' ]);
 Dj_App_Hooks::addFilter('app.core.request.page.get.full_page', [ $obj, 'resetPageOnLangRoot' ]);
 Dj_App_Hooks::addFilter('app.core.request.web_path', [ $obj, 'appendLangToWebPath' ]);
+Dj_App_Hooks::addFilter('app.core.request.segments', [ $obj, 'shiftSegmentsAfterLang' ]);
 
 Dj_App_Hooks::addFilter('app.plugin.static_content.site_content_dir', [ $obj, 'maybePrependLangDir' ]);
 
@@ -120,18 +121,25 @@ class Djebel_Plugin_Lang
      */
     public function appendLangToWebPath($web_path, $ctx = [])
     {
-        // Skip for asset/site/theme URLs
+        // Skip for asset/site/theme URLs and internal redirect building
         $context = empty($ctx['context']) ? '' : $ctx['context'];
-        $skip_contexts = [ 'content_url', 'site_url', 'theme_url', ];
+        $skip_contexts = [ 'content_url', 'site_url', 'theme_url', 'lang_redirect', ];
 
         if (in_array($context, $skip_contexts)) {
             return $web_path;
         }
 
         $current_lang = $this->getCurrentLang();
+        $lang_segment = '/' . $current_lang . '/';
+
+        // Prevent multiple appends - check if lang already in path
+        if (strpos($web_path, $lang_segment) !== false) {
+            return $web_path;
+        }
+
+        // Also check if ends with lang (no trailing slash)
         $lang_suffix = '/' . $current_lang;
 
-        // Prevent multiple appends
         if (substr($web_path, -strlen($lang_suffix)) === $lang_suffix) {
             return $web_path;
         }
@@ -142,32 +150,72 @@ class Djebel_Plugin_Lang
     }
 
     /**
+     * Shift segments to remove lang prefix
+     * e.g., [en, blog, post] → [blog, post] so segment1 = blog
+     * @param array $segments
+     * @return array
+     */
+    public function shiftSegmentsAfterLang($segments)
+    {
+        if (empty($segments)) {
+            return $segments;
+        }
+
+        $first_segment = reset($segments);
+        $available_langs = $this->getLangs();
+
+        if (!in_array($first_segment, $available_langs)) {
+            return $segments;
+        }
+
+        array_shift($segments);
+        $shifted_segments = array_values($segments);
+
+        return $shifted_segments;
+    }
+
+    /**
      * Redirect to default language if URL doesn't have a language prefix
      * Single responsibility: only handles redirect logic
+     * Checks URL path directly (not shifted segments)
      * @param array $ctx
      * @return void
      */
     public function maybeRedirect($ctx = [])
     {
-        $segment1 = $this->getSegment1();
+        $req_obj = Dj_App_Request::getInstance();
+        $relative_path = $req_obj->getRelWebPath();
+        $relative_path = trim($relative_path, '/');
         $langs = $this->getLangs();
 
-        // If URL already has a language prefix, no redirect needed
-        if (in_array($segment1, $langs)) {
-            return;
+        // Check URL path directly for lang prefix (segments may be shifted)
+        foreach ($langs as $lang) {
+            // URL is exactly lang (e.g., /en)
+            if ($relative_path === $lang) {
+                return;
+            }
+
+            // URL starts with lang/ (e.g., /en/blog)
+            $lang_prefix = $lang . '/';
+            $has_lang_prefix = strpos($relative_path, $lang_prefix) === 0;
+
+            if ($has_lang_prefix) {
+                return;
+            }
         }
 
         // No lang prefix - redirect to add default language
-        $req_obj = Dj_App_Request::getInstance();
         $default_lang = $this->getDefaultLang();
-        $web_path = $req_obj->getWebPath();
-        $relative_path = $req_obj->getRelWebPath();
+
+        // Get base web_path without lang filter (context tells filter to skip)
+        $web_path_ctx = [ 'context' => 'lang_redirect', ];
+        $web_path = $req_obj->getWebPath($web_path_ctx);
 
         // Build redirect: web_path + default_lang + relative_path
         $redirect_url = $web_path . '/' . $default_lang;
 
-        if (!empty($relative_path) && $relative_path !== '/') {
-            $redirect_url .= $relative_path;
+        if (!empty($relative_path)) {
+            $redirect_url .= '/' . $relative_path;
         }
 
         $req_obj->redirect($redirect_url);
