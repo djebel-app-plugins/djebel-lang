@@ -23,19 +23,19 @@ Dj_App_Hooks::addAction('app.core.init', [ $obj, 'maybeRedirect' ]);
 Dj_App_Hooks::addFilter('app.core.request.page.get', [ $obj, 'resetPageOnLangRoot' ]);
 Dj_App_Hooks::addFilter('app.core.request.page.get.full_page', [ $obj, 'resetPageOnLangRoot' ]);
 
-Dj_App_Hooks::addFilter('app.themes.current_theme.pages_dir', [ $obj, 'maybePrependLandDir' ]);
+Dj_App_Hooks::addFilter('app.plugin.static_content.site_content_dir', [ $obj, 'maybePrependLangDir' ]);
 
 /**
  * Multi-lingual plugin for Djebel framework
- * Handles language detection, URL routing, and page file resolution
+ * Handles language detection, URL routing, and content path resolution
  *
  * URL Structure: /lang/page/
- * File Structure: themes/current_theme/pages/lang/page.php
+ * Content Structure: site_content/lang/page.html
  *
  * Examples:
- * - /en/ -> pages/en/home.php
- * - /en/blog/ -> pages/en/blog.php
- * - /bg/about/ -> pages/bg/about.php
+ * - /en/ -> site_content/en/home.html
+ * - /en/blog/ -> site_content/en/blog.html
+ * - /bg/about/ -> site_content/bg/about.html
  * - / -> redirects to /en/ (default lang)
  * - /blog/ -> redirects to /en/blog/
  */
@@ -96,17 +96,18 @@ class Djebel_Plugin_Lang
     }
 
     /**
-     * Add language directory to pages_dir for multi-lingual file routing
-     * Examples: pages/ + en -> pages/en/, pages/ + bg -> pages/bg/
-     * @param string $pages_dir
-     * @return string
+     * Add language directory to path for multi-lingual file routing
+     * Works for both theme pages_dir and site_content_dir
+     * Examples: pages/ + en -> pages/en/, site_content/ + en -> site_content/en/
+     * @param string $dir Base directory path
+     * @return string Directory path with language appended
      */
-    public function maybePrependLandDir($pages_dir)
+    public function maybePrependLangDir($dir)
     {
         $current_lang = $this->getCurrentLang();
-        $pages_dir .= '/' . $current_lang;
+        $dir .= '/' . $current_lang;
 
-        return $pages_dir;
+        return $dir;
     }
 
     /**
