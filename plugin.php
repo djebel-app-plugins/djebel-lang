@@ -22,6 +22,7 @@ $obj = Djebel_Plugin_Lang::getInstance();
 Dj_App_Hooks::addAction('app.core.init', [ $obj, 'maybeRedirect' ]);
 Dj_App_Hooks::addFilter('app.core.request.page.get', [ $obj, 'resetPageOnLangRoot' ]);
 Dj_App_Hooks::addFilter('app.core.request.page.get.full_page', [ $obj, 'resetPageOnLangRoot' ]);
+Dj_App_Hooks::addFilter('app.core.request.web_path', [ $obj, 'appendLangToWebPath' ]);
 
 Dj_App_Hooks::addFilter('app.plugin.static_content.site_content_dir', [ $obj, 'maybePrependLangDir' ]);
 
@@ -108,6 +109,36 @@ class Djebel_Plugin_Lang
         $dir .= '/' . $current_lang;
 
         return $dir;
+    }
+
+    /**
+     * Append current language to web path
+     * Skip for asset/content URLs (context = content_url)
+     * @param string $web_path Base web path
+     * @param array $ctx Context with optional 'context' key
+     * @return string Web path with language appended
+     */
+    public function appendLangToWebPath($web_path, $ctx = [])
+    {
+        // Skip for asset/site/theme URLs
+        $context = empty($ctx['context']) ? '' : $ctx['context'];
+        $skip_contexts = [ 'content_url', 'site_url', 'theme_url', ];
+
+        if (in_array($context, $skip_contexts)) {
+            return $web_path;
+        }
+
+        $current_lang = $this->getCurrentLang();
+        $lang_suffix = '/' . $current_lang;
+
+        // Prevent multiple appends
+        if (substr($web_path, -strlen($lang_suffix)) === $lang_suffix) {
+            return $web_path;
+        }
+
+        $web_path = rtrim($web_path, '/') . $lang_suffix;
+
+        return $web_path;
     }
 
     /**
