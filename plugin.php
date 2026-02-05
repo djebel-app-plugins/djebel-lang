@@ -76,7 +76,7 @@ class Djebel_Plugin_Lang
      * @return string
      */
     public function resetPageOnLangRoot($full_page) {
-        $full_page = trim($full_page, '/');
+        $full_page = Dj_App_String_Util::trim($full_page, '/');
         $langs = $this->getLangs();
 
         // Exactly 'en' or 'bg' -> return empty (front page)
@@ -144,7 +144,8 @@ class Djebel_Plugin_Lang
             return $web_path;
         }
 
-        $web_path = rtrim($web_path, '/') . $lang_suffix;
+        $web_path = Dj_App_Util::removeSlash($web_path);
+        $web_path = $web_path . $lang_suffix;
 
         return $web_path;
     }
@@ -185,7 +186,7 @@ class Djebel_Plugin_Lang
     {
         $req_obj = Dj_App_Request::getInstance();
         $relative_path = $req_obj->getRelWebPath();
-        $relative_path = trim($relative_path, '/');
+        $relative_path = Dj_App_String_Util::trim($relative_path, '/');
         $langs = $this->getLangs();
 
         // Check URL path directly for lang prefix (segments may be shifted)
@@ -212,6 +213,7 @@ class Djebel_Plugin_Lang
         $web_path = $req_obj->getWebPath($web_path_ctx);
 
         // Build redirect: web_path + default_lang + relative_path
+        $web_path = Dj_App_Util::removeSlash($web_path);
         $redirect_url = $web_path . '/' . $default_lang;
 
         if (!empty($relative_path)) {
