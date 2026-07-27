@@ -22,7 +22,7 @@ $obj = Djebel_Plugin_Lang::getInstance();
 Dj_App_Hooks::addAction('app.core.init', [ $obj, 'maybeRedirect' ]);
 Dj_App_Hooks::addFilter('app.core.request.page.get', [ $obj, 'resetPageOnLangRoot' ]);
 Dj_App_Hooks::addFilter('app.core.request.page.get.full_page', [ $obj, 'resetPageOnLangRoot' ]);
-Dj_App_Hooks::addFilter('app.core.request.web_path', [ $obj, 'appendLangToWebPath' ]);
+Dj_App_Hooks::addFilter('app.core.request.web_path', [ $obj, 'appendLangToBaseUrl' ]);
 Dj_App_Hooks::addFilter('app.core.request.segments', [ $obj, 'shiftSegmentsAfterLang' ]);
 
 Dj_App_Hooks::addFilter('app.plugin.static_content.site_content_dir', [ $obj, 'maybePrependLangDir' ]);
@@ -113,41 +113,41 @@ class Djebel_Plugin_Lang
     }
 
     /**
-     * Append current language to web path
+     * Append current language to the base URL
      * Skip for asset/content URLs (context = content_url)
-     * @param string $web_path Base web path
+     * @param string $base_url Base URL prefix
      * @param array $ctx Context with optional 'context' key
-     * @return string Web path with language appended
+     * @return string Base URL with language appended
      */
-    public function appendLangToWebPath($web_path, $ctx = [])
+    public function appendLangToBaseUrl($base_url, $ctx = [])
     {
         // Skip for asset/site/theme URLs and internal redirect building
         $context = empty($ctx['context']) ? '' : $ctx['context'];
         $skip_contexts = [ 'content_url', 'site_url', 'theme_url', 'lang_redirect', ];
 
         if (in_array($context, $skip_contexts)) {
-            return $web_path;
+            return $base_url;
         }
 
         $current_lang = $this->getCurrentLang();
         $lang_segment = '/' . $current_lang . '/';
 
         // Prevent multiple appends - check if lang already in path
-        if (strpos($web_path, $lang_segment) !== false) {
-            return $web_path;
+        if (strpos($base_url, $lang_segment) !== false) {
+            return $base_url;
         }
 
         // Also check if ends with lang (no trailing slash)
         $lang_suffix = '/' . $current_lang;
 
-        if (substr($web_path, -strlen($lang_suffix)) === $lang_suffix) {
-            return $web_path;
+        if (substr($base_url, -strlen($lang_suffix)) === $lang_suffix) {
+            return $base_url;
         }
 
-        $web_path = Dj_App_Util::removeSlash($web_path);
-        $web_path = $web_path . $lang_suffix;
+        $base_url = Dj_App_Util::removeSlash($base_url);
+        $base_url = $base_url . $lang_suffix;
 
-        return $web_path;
+        return $base_url;
     }
 
     /**
@@ -185,20 +185,20 @@ class Djebel_Plugin_Lang
     public function maybeRedirect($ctx = [])
     {
         $req_obj = Dj_App_Request::getInstance();
-        $relative_path = $req_obj->getRelWebPath();
-        $relative_path = Dj_App_String_Util::trim($relative_path, '/');
+        $rel_url = $req_obj->getRelWebPath();
+        $rel_url = Dj_App_String_Util::trim($rel_url, '/');
         $langs = $this->getLangs();
 
         // Check URL path directly for lang prefix (segments may be shifted)
         foreach ($langs as $lang) {
             // URL is exactly lang (e.g., /en)
-            if ($relative_path === $lang) {
+            if ($rel_url === $lang) {
                 return;
             }
 
             // URL starts with lang/ (e.g., /en/blog)
             $lang_prefix = $lang . '/';
-            $has_lang_prefix = strpos($relative_path, $lang_prefix) === 0;
+            $has_lang_prefix = strpos($rel_url, $lang_prefix) === 0;
 
             if ($has_lang_prefix) {
                 return;
@@ -208,16 +208,16 @@ class Djebel_Plugin_Lang
         // No lang prefix - redirect to add default language
         $default_lang = $this->getDefaultLang();
 
-        // Get base web_path without lang filter (context tells filter to skip)
-        $web_path_ctx = [ 'context' => 'lang_redirect', ];
-        $web_path = $req_obj->getWebPath($web_path_ctx);
+        // Get the base URL without the lang filter (context tells the filter to skip)
+        $base_url_ctx = [ 'context' => 'lang_redirect', ];
+        $base_url = $req_obj->getWebPath($base_url_ctx);
 
-        // Build redirect: web_path + default_lang + relative_path
-        $web_path = Dj_App_Util::removeSlash($web_path);
-        $redirect_url = $web_path . '/' . $default_lang;
+        // Build redirect: base_url + default_lang + rel_url
+        $base_url = Dj_App_Util::removeSlash($base_url);
+        $redirect_url = $base_url . '/' . $default_lang;
 
-        if (!empty($relative_path)) {
-            $redirect_url .= '/' . $relative_path;
+        if (!empty($rel_url)) {
+            $redirect_url .= '/' . $rel_url;
         }
 
         $req_obj->redirect($redirect_url);
